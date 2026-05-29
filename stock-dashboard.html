@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Market Dashboard</title>
+  <style>
+    :root {
+      --bg:       #0a0c0f;
+      --surface:  #111418;
+      --surface2: #181c22;
+      --border:   #1e2530;
+      --text:     #e8edf4;
+      --muted:    #6b7685;
+      --subtle:   #3a4250;
+      --up:       #22c55e;
+      --down:     #ef4444;
+      --accent:   #3b82f6;
+      --label:    #94a3b8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .logo {
+      font-size: .95rem;
+      font-weight: 700;
+      letter-spacing: -.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon svg { display: block; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .market-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+    }
+    .status-dot.open  { background: var(--up);   animation: pulse 2s ease-in-out infinite; }
+    .status-dot.closed{ background: var(--muted); }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+
+    .refresh-info {
+      font-size: .7rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--label);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: .7rem;
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .refresh-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Layout ─────────────────────────────────────── */
+    .page { max-width: 900px; margin: 0 auto; padding: 32px 24px 60px; }
+
+    .section-heading {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      padding-left: 2px;
+    }
+
+    /* ── Market Table ───────────────────────────────── */
+    .market-table {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+
+    .table-header {
+      display: grid;
+      grid-template-columns: 1fr 160px 100px 100px 100px;
+      padding: 10px 22px;
+      border-bottom: 1px solid var(--border);
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+    }
+    .table-header .th-right { text-align: right; }
+
+    .market-row {
+      display: grid;
+      grid-template-columns: 1fr 160px 100px 100px 100px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      transition: background .15s;
+    }
+    .market-row:last-child { border-bottom: none; }
+    .market-row:hover { background: var(--surface2); }
+
+    /* symbol / name */
+    .row-identity {}
+    .row-ticker {
+      font-size: .92rem;
+      font-weight: 700;
+      letter-spacing: .2px;
+      color: var(--text);
+    }
+    .row-name {
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* value column */
+    .row-value {
+      text-align: right;
+      font-size: 1rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.2px;
+    }
+
+    /* pct change pill */
+    .pct {
+      text-align: right;
+      font-size: .78rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .pct-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: .73rem;
+      font-weight: 700;
+      letter-spacing: .1px;
+    }
+    .pct-pill.up   { background: rgba(34,197,94,.12);  color: var(--up);   }
+    .pct-pill.down { background: rgba(239,68,68,.12);   color: var(--down); }
+    .pct-pill.zero { background: rgba(107,118,133,.12); color: var(--muted); }
+    .pct-pill.loading {
+      background: var(--surface2);
+      color: var(--subtle);
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes shimmer { 0%,100%{opacity:.6}50%{opacity:1} }
+
+    /* ── Apple Section ──────────────────────────────── */
+    .apple-section { margin-top: 0; }
+
+    .apple-header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .apple-logo {
+      width: 26px; height: 26px;
+      flex-shrink: 0;
+    }
+
+    /* Earnings table */
+    .earnings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+
+    .earnings-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+    .earnings-title {
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .earnings-quarter {
+      font-size: .7rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 10px;
+    }
+
+    .earnings-table-header {
+      display: grid;
+      grid-template-columns: 1fr 160px 90px 110px;
+      padding: 8px 22px;
+      border-bottom: 1px solid var(--border);
+      font-size: .67rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+    }
+    .earnings-table-header .th-right { text-align: right; }
+
+    .earnings-row {
+      display: grid;
+      grid-template-columns: 1fr 160px 90px 110px;
+      padding: 15px 22px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      transition: background .15s;
+    }
+    .earnings-row:last-child { border-bottom: none; }
+    .earnings-row:hover { background: var(--surface2); }
+    .earnings-row.total-row {
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+    }
+
+    .cat-name {
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .cat-icon {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 2px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .net-sales {
+      text-align: right;
+      font-size: .85rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    .net-sales .unit {
+      font-size: .68rem;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    .yoy-col { text-align: right; }
+
+    /* Error / loading states */
+    .error-msg {
+      font-size: .72rem;
+      color: var(--down);
+      text-align: center;
+      padding: 6px 0 2px;
+    }
+
+    /* ── Footer ─────────────────────────────────────── */
+    .page-footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: .67rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .page-footer a { color: var(--accent); text-decoration: none; }
+    .footnote-star { color: var(--muted); }
+
+    .last-close-label {
+      font-size: .63rem;
+      color: var(--muted);
+      font-weight: 500;
+      margin-top: 3px;
+      letter-spacing: .1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+           stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+        <polyline points="16 7 22 7 22 13"/>
+      </svg>
+    </div>
+    Market Dashboard
+  </div>
+  <div class="header-right">
+    <div class="market-status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusLabel">—</span>
+    </div>
+    <div class="refresh-info">
+      <span id="lastUpdated">Fetching…</span>
+      <button class="refresh-btn" id="refreshBtn" onclick="refresh()">↻ Refresh</button>
+    </div>
+  </div>
+</header>
+
+<!-- ── Page ── -->
+<div class="page">
+
+  <!-- Markets -->
+  <div class="section-heading">Markets</div>
+  <div class="market-table">
+    <div class="table-header">
+      <span>Instrument</span>
+      <span class="th-right">Current Value</span>
+      <span class="th-right">1D Change</span>
+      <span class="th-right">90D Change</span>
+      <span class="th-right">YTD Change</span>
+    </div>
+
+    <!-- VTI -->
+    <div class="market-row" id="row-VTI">
+      <div class="row-identity">
+        <div class="row-ticker">VTI</div>
+        <div class="row-name">Vanguard Total Stock Market ETF</div>
+      </div>
+      <div class="row-value" id="val-VTI">—</div>
+      <div class="pct" id="1d-VTI"><span class="pct-pill loading">···</span></div>
+      <div class="pct" id="90d-VTI"><span class="pct-pill loading">···</span></div>
+      <div class="pct" id="ytd-VTI"><span class="pct-pill loading">···</span></div>
+    </div>
+
+    <!-- NASDAQ -->
+    <div class="market-row" id="row-IXIC">
+      <div class="row-identity">
+        <div class="row-ticker">NASDAQ</div>
+        <div class="row-name">NASDAQ Composite (.IXIC)</div>
+      </div>
+      <div class="row-value" id="val-IXIC">—</div>
+      <div class="pct" id="1d-IXIC"><span class="pct-pill loading">···</span></div>
+      <div class="pct" id="90d-IXIC"><span class="pct-pill loading">···</span></div>
+      <div class="pct" id="ytd-IXIC"><span class="pct-pill loading">···</span></div>
+    </div>
+
+    <!-- S&P 500 -->
+    <div class="market-row" id="row-GSPC">
+      <div class="row-identity">
+        <div class="row-ticker">S&amp;P 500</div>
+        <div class="row-name">S&amp;P 500 Index (.INX)</div>
+      </div>
+      <div class="row-value" id="val-GSPC">—</div>
+      <div class="pct" id="1d-GSPC"><span class="pct-pill loading">···</span></div>
+      <div class="pct" id="90d-GSPC"><span class="pct-pill loading">···</span></div>
+      <div class="pct" id="ytd-GSPC"><span class="pct-pill loading">···</span></div>
+    </div>
+  </div>
+
+  <!-- Apple -->
+  <div class="section-heading apple-header-row" style="margin-bottom:0">
+    <svg class="apple-logo" viewBox="0 0 814 1000" fill="var(--muted)" xmlns="http://www.w3.org/2000/svg">
+      <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-43.4-150.3-109.2C85.9 634.5 58 537.7 58 445.1 58 264.5 177.2 167.1 294.7 167.1c64.5 0 118.1 42.4 158.6 42.4 39.2 0 100.7-45 176.3-45 28.5 0 130.9 2.6 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
+    </svg>
+    <span>Apple Inc. (AAPL)</span>
+  </div>
+
+  <div class="apple-section">
+    <div class="market-table" style="margin-top:12px;">
+      <div class="table-header">
+        <span>Instrument</span>
+        <span class="th-right">Current Price</span>
+        <span class="th-right">1D Change</span>
+        <span class="th-right">90D Change</span>
+        <span class="th-right">YTD Change</span>
+      </div>
+      <div class="market-row" id="row-AAPL">
+        <div class="row-identity">
+          <div class="row-ticker">AAPL</div>
+          <div class="row-name">Apple Inc. — Common Stock (NASDAQ)</div>
+        </div>
+        <div class="row-value" id="val-AAPL">—</div>
+        <div class="pct" id="1d-AAPL"><span class="pct-pill loading">···</span></div>
+        <div class="pct" id="90d-AAPL"><span class="pct-pill loading">···</span></div>
+        <div class="pct" id="ytd-AAPL"><span class="pct-pill loading">···</span></div>
+      </div>
+    </div>
+
+    <!-- Earnings -->
+    <div class="earnings-card">
+      <div class="earnings-header-bar">
+        <span class="earnings-title">Net Sales by Product Category</span>
+        <span class="earnings-quarter">Q2 FY2025 · Ended Mar 29, 2025</span>
+      </div>
+      <div class="earnings-table-header">
+        <span>Category</span>
+        <span class="th-right">Net Sales</span>
+        <span class="th-right">% of Total</span>
+        <span class="th-right">YoY Change</span>
+      </div>
+
+      <!-- iPhone -->
+      <div class="earnings-row">
+        <div class="cat-name">
+          <span class="cat-icon" style="background:#3b82f6"></span>iPhone
+        </div>
+        <div class="net-sales">$46.84B</div>
+        <div class="net-sales" style="color:var(--label)">49.1%</div>
+        <div class="yoy-col">
+          <span class="pct-pill up">▲ +1.9%</span>
+        </div>
+      </div>
+
+      <!-- Mac -->
+      <div class="earnings-row">
+        <div class="cat-name">
+          <span class="cat-icon" style="background:#a78bfa"></span>Mac
+        </div>
+        <div class="net-sales">$7.95B</div>
+        <div class="net-sales" style="color:var(--label)">8.3%</div>
+        <div class="yoy-col">
+          <span class="pct-pill up">▲ +6.7%</span>
+        </div>
+      </div>
+
+      <!-- iPad -->
+      <div class="earnings-row">
+        <div class="cat-name">
+          <span class="cat-icon" style="background:#34d399"></span>iPad
+        </div>
+        <div class="net-sales">$6.40B</div>
+        <div class="net-sales" style="color:var(--label)">6.7%</div>
+        <div class="yoy-col">
+          <span class="pct-pill up">▲ +15.1%</span>
+        </div>
+      </div>
+
+      <!-- Wearables -->
+      <div class="earnings-row">
+        <div class="cat-name">
+          <span class="cat-icon" style="background:#fb923c"></span>Wearables, Home &amp; Accessories
+        </div>
+        <div class="net-sales">$7.52B</div>
+        <div class="net-sales" style="color:var(--label)">7.9%</div>
+        <div class="yoy-col">
+          <span class="pct-pill down">▼ −4.9%</span>
+        </div>
+      </div>
+
+      <!-- Services -->
+      <div class="earnings-row">
+        <div class="cat-name">
+          <span class="cat-icon" style="background:#f472b6"></span>Services
+        </div>
+        <div class="net-sales">$26.65B</div>
+        <div class="net-sales" style="color:var(--label)">27.9%</div>
+        <div class="yoy-col">
+          <span class="pct-pill up">▲ +11.6%</span>
+        </div>
+      </div>
+
+      <!-- Total -->
+      <div class="earnings-row total-row">
+        <div class="cat-name" style="font-weight:700; color:var(--label)">Total Net Sales</div>
+        <div class="net-sales" style="font-weight:700">$95.36B</div>
+        <div class="net-sales" style="color:var(--subtle)">100%</div>
+        <div class="yoy-col">
+          <span class="pct-pill up">▲ +5.1%</span>
+        </div>
+      </div>
+
+    </div><!-- /earnings-card -->
+  </div><!-- /apple-section -->
+
+  <!-- Footer -->
+  <div class="page-footer">
+    <strong>Data sources:</strong> Live market prices via <a href="https://finance.yahoo.com" target="_blank">Yahoo Finance</a> (unofficial public API). 1D change calculated from previous close. 90D and YTD changes calculated from historical daily close data. Prices refresh every 60 seconds.<br>
+    Apple quarterly earnings data sourced from Apple's Q2 FY2025 earnings release (ended March 29, 2025). Earnings data updates four times per year following Apple's quarterly reports.<br>
+    <span class="footnote-star">This dashboard is for informational purposes only and does not constitute financial advice.</span>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════ */
+const SYMBOLS = {
+  VTI:  { yahooSymbol: "VTI",   isCurrency: false, isPrice: true  },
+  IXIC: { yahooSymbol: "%5EIXIC", isCurrency: false, isPrice: false },
+  GSPC: { yahooSymbol: "%5EGSPC", isCurrency: false, isPrice: false },
+  AAPL: { yahooSymbol: "AAPL",  isCurrency: false, isPrice: true  },
+};
+
+const REFRESH_INTERVAL_MS = 60_000;
+let refreshTimer = null;
+let isLoading = false;
+
+/* ═══════════════════════════════════════════════════════
+   MARKET HOURS (US Eastern)
+═══════════════════════════════════════════════════════ */
+function isMarketOpen() {
+  const now = new Date();
+  const et  = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = et.getDay(); // 0=Sun
+  const h   = et.getHours();
+  const m   = et.getMinutes();
+  const mins = h * 60 + m;
+  // Mon–Fri 9:30am–4:00pm ET
+  return day >= 1 && day <= 5 && mins >= 570 && mins < 960;
+}
+
+function updateMarketStatus() {
+  const open = isMarketOpen();
+  const dot   = document.getElementById("statusDot");
+  const label = document.getElementById("statusLabel");
+  dot.className = "status-dot " + (open ? "open" : "closed");
+  label.textContent = open ? "Market Open" : "Market Closed";
+}
+
+/* ═══════════════════════════════════════════════════════
+   FORMAT HELPERS
+═══════════════════════════════════════════════════════ */
+function fmtPrice(val, isPrice) {
+  if (val == null || isNaN(val)) return "—";
+  if (isPrice) {
+    return "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  // Index value (no $, comma-separated)
+  return val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function pctPill(pct) {
+  if (pct == null || isNaN(pct)) return `<span class="pct-pill zero">—</span>`;
+  const sign  = pct >= 0 ? "▲ +" : "▼ ";
+  const cls   = pct > 0 ? "up" : pct < 0 ? "down" : "zero";
+  const str   = Math.abs(pct).toFixed(2) + "%";
+  return `<span class="pct-pill ${cls}">${sign}${str}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FETCH  ─ Yahoo Finance v8 chart API
+   Returns: { price, pct1d, pct90d, pctYtd }
+═══════════════════════════════════════════════════════ */
+async function fetchSymbol(key) {
+  const cfg = SYMBOLS[key];
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cfg.yahooSymbol}?interval=1d&range=2y&includePrePost=false&events=div`;
+  // Yahoo Finance omits CORS headers, so all browser requests are blocked regardless of origin.
+  // allorigins.win is a free CORS proxy that fetches the URL server-side and wraps it:
+  //   { contents: "<yahoo json string>", status: { http_code: 200, ... } }
+  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+
+  const res     = await fetch(proxyUrl, { mode: "cors" });
+  const wrapper = await res.json();
+  const json    = JSON.parse(wrapper.contents);
+  const result  = json?.chart?.result?.[0];
+  if (!result) throw new Error("No result for " + key);
+
+  const meta        = result.meta;
+  const closes      = result.indicators?.quote?.[0]?.close ?? [];
+  const timestamps  = result.timestamp ?? [];
+
+  // Filter out null closes paired with their timestamps
+  const pairs = timestamps
+    .map((t, i) => ({ t, c: closes[i] }))
+    .filter(p => p.c != null && !isNaN(p.c));
+
+  if (pairs.length < 2) throw new Error("Insufficient data for " + key);
+
+  // Current price (use regularMarketPrice for live intraday)
+  const livePrice = meta.regularMarketPrice ?? pairs[pairs.length - 1].c;
+  // NOTE: meta.chartPreviousClose is the close at the START of the requested range (2 years ago),
+  // NOT yesterday — never use it for 1D change. pairs[-2] is always the prior trading day's close.
+  const prevClose = meta.regularMarketPreviousClose ?? meta.previousClose ?? pairs[pairs.length - 2].c;
+
+  // 1D
+  const pct1d = ((livePrice - prevClose) / prevClose) * 100;
+
+  // YTD: find last close of previous calendar year
+  const thisYear = new Date().getFullYear();
+  const ytdBasePair = [...pairs].reverse().find(p => {
+    const y = new Date(p.t * 1000).getFullYear();
+    return y < thisYear;
+  });
+  const pctYtd = ytdBasePair
+    ? ((livePrice - ytdBasePair.c) / ytdBasePair.c) * 100
+    : null;
+
+  // 90D: find close ~90 calendar days ago
+  const nowMs      = Date.now();
+  const target90   = nowMs - 90 * 24 * 60 * 60 * 1000;
+  const pair90 = [...pairs].reverse().find(p => p.t * 1000 <= target90);
+  const pct90d = pair90
+    ? ((livePrice - pair90.c) / pair90.c) * 100
+    : null;
+
+  return { price: livePrice, pct1d, pct90d, pctYtd, marketState: meta.marketState ?? null, regularMarketTime: meta.regularMarketTime ?? null };
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════════════════ */
+function renderSymbol(key, data) {
+  const cfg = SYMBOLS[key];
+
+  // Price + "Last close" sub-label when market is not in regular session
+  const isClosed = data.marketState && data.marketState !== "REGULAR";
+  const valEl = document.getElementById(`val-${key}`);
+  if (isClosed && data.regularMarketTime) {
+    const d = new Date(data.regularMarketTime * 1000);
+    const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    valEl.innerHTML =
+      `<div>${fmtPrice(data.price, cfg.isPrice)}</div>` +
+      `<div class="last-close-label">Last close · ${dateStr}</div>`;
+  } else {
+    valEl.textContent = fmtPrice(data.price, cfg.isPrice);
+  }
+
+  document.getElementById(`1d-${key}`).innerHTML   = pctPill(data.pct1d);
+  document.getElementById(`90d-${key}`).innerHTML  = pctPill(data.pct90d);
+  document.getElementById(`ytd-${key}`).innerHTML  = pctPill(data.pctYtd);
+}
+
+function setLoading(key) {
+  ["1d","90d","ytd"].forEach(p => {
+    document.getElementById(`${p}-${key}`).innerHTML =
+      `<span class="pct-pill loading">···</span>`;
+  });
+  document.getElementById(`val-${key}`).textContent = "…";
+}
+
+function setError(key) {
+  ["1d","90d","ytd"].forEach(p => {
+    document.getElementById(`${p}-${key}`).innerHTML =
+      `<span class="pct-pill zero">—</span>`;
+  });
+  document.getElementById(`val-${key}`).textContent = "—";
+}
+
+/* ═══════════════════════════════════════════════════════
+   MAIN REFRESH
+═══════════════════════════════════════════════════════ */
+async function refresh() {
+  if (isLoading) return;
+  isLoading = true;
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true;
+  btn.textContent = "↻ Fetching…";
+  document.getElementById("lastUpdated").textContent = "Fetching…";
+
+  updateMarketStatus();
+  Object.keys(SYMBOLS).forEach(k => setLoading(k));
+
+  const results = await Promise.allSettled(
+    Object.keys(SYMBOLS).map(async key => {
+      const data = await fetchSymbol(key);
+      renderSymbol(key, data);
+    })
+  );
+
+  results.forEach((r, i) => {
+    if (r.status === "rejected") {
+      const key = Object.keys(SYMBOLS)[i];
+      console.warn("Failed to load", key, r.reason);
+      setError(key);
+    }
+  });
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  document.getElementById("lastUpdated").textContent = `Updated ${timeStr}`;
+  btn.disabled = false;
+  btn.textContent = "↻ Refresh";
+  isLoading = false;
+}
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════ */
+refresh();
+refreshTimer = setInterval(refresh, REFRESH_INTERVAL_MS);
+setInterval(updateMarketStatus, 30_000);
+</script>
+</body>
+</html>
