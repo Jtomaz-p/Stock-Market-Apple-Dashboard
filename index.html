@@ -360,7 +360,7 @@
   <div class="section-heading">Markets</div>
   <div class="market-table">
     <div class="table-header">
-      <span>Instrument</span>
+      <span>Market Indices</span>
       <span class="th-right">Current Value</span>
       <span class="th-right">1D Change</span>
       <span class="th-right">90D Change</span>
@@ -415,7 +415,7 @@
   <div class="apple-section">
     <div class="market-table" style="margin-top:12px;">
       <div class="table-header">
-        <span>Instrument</span>
+        <span>Apple Performance</span>
         <span class="th-right">Current Price</span>
         <span class="th-right">1D Change</span>
         <span class="th-right">90D Change</span>
@@ -542,6 +542,7 @@ const SYMBOLS = {
 const REFRESH_INTERVAL_MS = 60_000;
 let refreshTimer = null;
 let isLoading = false;
+const dataCache = {};  // stores last successful fetch per symbol so UI never goes blank
 
 /* ═══════════════════════════════════════════════════════
    MARKET HOURS (US Eastern)
@@ -696,11 +697,14 @@ async function refresh() {
   document.getElementById("lastUpdated").textContent = "Fetching…";
 
   updateMarketStatus();
-  Object.keys(SYMBOLS).forEach(k => setLoading(k));
+  // Only show loading spinners on the very first fetch (no cached data yet).
+  // On subsequent refreshes, keep displaying the last known values while new data loads.
+  Object.keys(SYMBOLS).forEach(k => { if (!dataCache[k]) setLoading(k); });
 
   const results = await Promise.allSettled(
     Object.keys(SYMBOLS).map(async key => {
       const data = await fetchSymbol(key);
+      dataCache[key] = data;   // persist for next refresh cycle
       renderSymbol(key, data);
     })
   );
@@ -709,7 +713,8 @@ async function refresh() {
     if (r.status === "rejected") {
       const key = Object.keys(SYMBOLS)[i];
       console.warn("Failed to load", key, r.reason);
-      setError(key);
+      // If we have cached data keep showing it; only fall back to error state on first load
+      if (!dataCache[key]) setError(key);
     }
   });
 
